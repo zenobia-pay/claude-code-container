@@ -6,8 +6,8 @@ const path = require('path');
 const PORT = 4000;
 const WORKSPACE = '/workspace';
 
-// Store active sessions
-const sessions = new Map();
+// Store running tasks
+const tasks = new Map();
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -23,15 +23,141 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Health check
-  if (url.pathname === '/health') {
+  // Health check / ping - used by Cloudflare to check container is ready
+  if (url.pathname === '/health' || url.pathname === '/ping') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', workspace: WORKSPACE }));
+    res.end(JSON.stringify({ status: 'ok', workspace: WORKSPACE, tasks: tasks.size }));
     return;
   }
 
-  // Run Claude Code
+  // Start a task (async - returns immediately with task ID)
   if (url.pathname === '/run' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { prompt, workdir, apiKey, agentId } = JSON.parse(body);
+        
+        if (!prompt) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'prompt required' }));
+          return;
+        }
+
+        const taskId = agentId || `task-${Date.now()}`;
+        const cwd = workdir ? path.join(WORKSPACE, workdir) : WORKSPACE;
+        
+        // Ensure directory exists
+        if (!fs.existsSync(cwd)) {
+          fs.mkdirSync(cwd, { recursive: true });
+        }
+
+        // Create task entry
+        tasks.set(taskId, {
+          status: 'running',
+          startTime: Date.now(),
+          stdout: '',
+          stderr: '',
+          exitCode: null,
+          cwd,
+        });
+
+        // Run Claude Code in background
+        const env = { ...process.env };
+        if (apiKey) env.ANTHROPIC_API_KEY = apiKey;
+
+        const claude = spawn('claude', [
+          '--dangerously-skip-permissions',
+          '--output-format', 'json',
+          '-p', prompt
+        ], {
+          cwd,
+          env,
+          timeout: 600000 // 10 minute timeout
+        });
+
+        const task = tasks.get(taskId);
+
+        claude.stdout.on('data', data => {
+          task.stdout += data;
+        });
+        
+        claude.stderr.on('data', data => {
+          task.stderr += data;
+        });
+
+        claude.on('close', code => {
+          task.status = code === 0 ? 'completed' : 'failed';
+          task.exitCode = code;
+          task.endTime = Date.now();
+          
+          // Parse result
+          try {
+            task.result = JSON.parse(task.stdout);
+          } catch {
+            task.result = { raw: task.stdout };
+          }
+        });
+
+        claude.on('error', err => {
+          task.status = 'failed';
+          task.error = err.message;
+          task.endTime = Date.now();
+        });
+
+        // Return task ID immediately
+        res.writeHead(202, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+          taskId, 
+          status: 'running',
+          message: 'Task started. Poll /status/{taskId} for results.'
+        }));
+
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // Check task status
+  const statusMatch = url.pathname.match(/^\/status\/(.+)$/);
+  if (statusMatch) {
+    const taskId = statusMatch[1];
+    const task = tasks.get(taskId);
+    
+    if (!task) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Task not found' }));
+      return;
+    }
+
+    const response = {
+      taskId,
+      status: task.status,
+      startTime: task.startTime,
+      elapsed: Date.now() - task.startTime,
+    };
+
+    if (task.status === 'completed' || task.status === 'failed') {
+      response.endTime = task.endTime;
+      response.exitCode = task.exitCode;
+      response.result = task.result;
+      response.stderr = task.stderr || undefined;
+      response.error = task.error || undefined;
+      
+      // Clean up after retrieval
+      tasks.delete(taskId);
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(response));
+    return;
+  }
+
+  // Run sync (for simple/quick tasks) - keeps old behavior
+  if (url.pathname === '/run-sync' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
@@ -46,12 +172,10 @@ const server = http.createServer(async (req, res) => {
 
         const cwd = workdir ? path.join(WORKSPACE, workdir) : WORKSPACE;
         
-        // Ensure directory exists
         if (!fs.existsSync(cwd)) {
           fs.mkdirSync(cwd, { recursive: true });
         }
 
-        // Run Claude Code
         const env = { ...process.env };
         if (apiKey) env.ANTHROPIC_API_KEY = apiKey;
 
@@ -62,7 +186,7 @@ const server = http.createServer(async (req, res) => {
         ], {
           cwd,
           env,
-          timeout: 300000 // 5 minute timeout
+          timeout: 300000
         });
 
         let stdout = '';
@@ -173,6 +297,22 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: err.message }));
       }
     });
+    return;
+  }
+
+  // List all tasks
+  if (url.pathname === '/tasks') {
+    const taskList = [];
+    for (const [id, task] of tasks) {
+      taskList.push({
+        taskId: id,
+        status: task.status,
+        startTime: task.startTime,
+        elapsed: Date.now() - task.startTime,
+      });
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ tasks: taskList }));
     return;
   }
 

@@ -73,6 +73,9 @@ Provide a clear weekly health summary.`,
   },
 };
 
+// Helper to sleep
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 async function runAgent(agentId: string, env: Env): Promise<{ success: boolean; output?: string; error?: string }> {
   const agent = AGENTS[agentId];
   if (!agent) {
@@ -81,6 +84,8 @@ async function runAgent(agentId: string, env: Env): Promise<{ success: boolean; 
 
   const startTime = Date.now();
   const logKey = `${agentId}:${startTime}`;
+  const MAX_WAIT_MS = 10 * 60 * 1000; // 10 minutes max
+  const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds
 
   try {
     // Build the full prompt with context
@@ -94,70 +99,104 @@ Execute your analysis and provide a detailed report.`;
     // Get a container instance for this agent using Cloudflare's getContainer
     const container = getContainer(env.CLAUDE_CODE, agentId);
 
-    // Call the container's /run endpoint
-    const response = await container.fetch(new Request("http://container/run", {
+    // Step 1: Start the task (returns immediately with taskId)
+    const startResponse = await container.fetch(new Request("http://container/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt: fullPrompt,
         agentId,
-        agentName: agent.name,
       }),
     }));
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Container error: ${error}`);
+    if (!startResponse.ok) {
+      const error = await startResponse.text();
+      throw new Error(`Failed to start task: ${error}`);
     }
 
-    const result = await response.json() as { 
-      exitCode?: number; 
-      result?: { raw?: string; result?: string; [key: string]: unknown }; 
-      stderr?: string;
-      error?: string;
-    };
+    const startResult = await startResponse.json() as { taskId: string; status: string };
+    const taskId = startResult.taskId;
+
+    // Step 2: Poll for completion
+    let attempts = 0;
+    const maxAttempts = Math.ceil(MAX_WAIT_MS / POLL_INTERVAL_MS);
     
-    // Extract output from Claude Code response
-    let output = "No output";
-    if (result.error) {
-      throw new Error(result.error);
-    }
-    if (result.result) {
-      if (typeof result.result === "string") {
-        output = result.result;
-      } else if (result.result.raw) {
-        output = result.result.raw;
-      } else if (result.result.result) {
-        output = String(result.result.result);
-      } else {
-        output = JSON.stringify(result.result, null, 2);
+    while (attempts < maxAttempts) {
+      await sleep(POLL_INTERVAL_MS);
+      attempts++;
+
+      const statusResponse = await container.fetch(
+        new Request(`http://container/status/${taskId}`)
+      );
+
+      if (!statusResponse.ok) {
+        throw new Error(`Failed to get task status: ${await statusResponse.text()}`);
+      }
+
+      const status = await statusResponse.json() as {
+        status: string;
+        result?: { raw?: string; result?: string; [key: string]: unknown };
+        error?: string;
+        stderr?: string;
+        exitCode?: number;
+      };
+
+      if (status.status === 'completed' || status.status === 'failed') {
+        // Task finished
+        let output = "No output";
+        
+        if (status.error) {
+          throw new Error(status.error);
+        }
+        
+        if (status.result) {
+          if (typeof status.result === "string") {
+            output = status.result;
+          } else if (status.result.raw) {
+            output = status.result.raw;
+          } else if (status.result.result) {
+            output = String(status.result.result);
+          } else {
+            output = JSON.stringify(status.result, null, 2);
+          }
+        }
+        
+        if (status.stderr) {
+          output += `\n\nStderr: ${status.stderr}`;
+        }
+
+        if (status.status === 'failed') {
+          throw new Error(`Task failed with exit code ${status.exitCode}: ${output}`);
+        }
+
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+
+        // Store log
+        await env.AGENT_LOGS.put(
+          logKey,
+          JSON.stringify({
+            agentId,
+            agentName: agent.name,
+            timestamp: new Date().toISOString(),
+            duration: `${duration}s`,
+            output,
+            success: true,
+          }),
+          { expirationTtl: 60 * 60 * 24 * 7 } // 7 days
+        );
+
+        // Send Slack notification if configured
+        if (env.SLACK_WEBHOOK_URL) {
+          await sendSlackNotification(env.SLACK_WEBHOOK_URL, agent.name, output, true);
+        }
+
+        return { success: true, output };
       }
     }
-    if (result.stderr) {
-      output += `\n\nStderr: ${result.stderr}`;
-    }
-    const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
-    // Store log
-    await env.AGENT_LOGS.put(
-      logKey,
-      JSON.stringify({
-        agentId,
-        agentName: agent.name,
-        timestamp: new Date().toISOString(),
-        duration: `${duration}s`,
-        output,
-        success: true,
-      }),
-      { expirationTtl: 60 * 60 * 24 * 7 } // 7 days
-    );
-
-    // Send Slack notification if configured
-    if (env.SLACK_WEBHOOK_URL) {
-      await sendSlackNotification(env.SLACK_WEBHOOK_URL, agent.name, output, true);
-    }
-
-    return { success: true, output };
+    // If we get here, we timed out waiting for the task
+    throw new Error(`Task timed out after ${MAX_WAIT_MS / 1000} seconds`);
+    
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
