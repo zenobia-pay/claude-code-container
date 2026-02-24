@@ -466,7 +466,7 @@ function renderAgents() {
   for (var i = 0; i < agents.length; i++) {
     var a = agents[i];
     var st = agentStatus[a.key] || "idle";
-    html += "<div class='agent'><div class='agent-info'><div class='agent-name'>" + a.name + "</div><div class='agent-desc'>" + a.desc + "</div><div class='agent-meta'><span class='agent-schedule'>" + a.schedule + "</span>" + (st !== "idle" ? "<span class='agent-status " + st + "'>" + st + "</span>" : "") + "</div></div><div class='agent-actions'><button class='btn' onclick='viewLogs(\"" + a.key + "\")'>Logs</button><button class='btn'" + (st === "running" ? " disabled" : "") + " onclick='runAgent(\"" + a.key + "\")'>" + (st === "running" ? "Running..." : "Run") + "</button></div></div>";
+    html += "<div class='agent'><div class='agent-info'><div class='agent-name'>" + a.name + "</div><div class='agent-desc'>" + a.desc + "</div><div class='agent-meta'><span class='agent-schedule'>" + a.schedule + "</span>" + (st !== "idle" ? "<span class='agent-status " + st + "'>" + st + "</span>" : "") + "</div></div><div class='agent-actions'><button class='btn' onclick='viewLogs(\\"" + a.key + "\\")'>Logs</button><button class='btn'" + (st === "running" ? " disabled" : "") + " onclick='runAgent(\\"" + a.key + "\\")'>" + (st === "running" ? "Running..." : "Run") + "</button></div></div>";
   }
   document.getElementById("agents").innerHTML = html;
 }
@@ -517,7 +517,7 @@ function doRun(key, retry) {
   fetch("/api/agents/" + key + "/run", { method: "POST" }).then(function(r) { return r.json(); }).then(function(d) {
     if (d.success) {
       appendOutput(key + " completed", "success");
-      if (d.output) d.output.split("\n").forEach(function(l) { if (l.trim()) appendOutput(l); });
+      if (d.output) d.output.split("\\n").forEach(function(l) { if (l.trim()) appendOutput(l); });
       showToast("Complete");
       agentStatus[key] = "idle";
     } else if (d.error && d.error.indexOf("blockConcurrencyWhile") > -1 && retry < 3) {
@@ -547,7 +547,7 @@ function viewLogs(key) {
   appendOutput("Fetching " + key + " logs...", "info");
   fetch("/api/agents/" + key + "/logs").then(function(r) { return r.json(); }).then(function(d) {
     if (d.logs && d.logs !== "No logs found") {
-      d.logs.split("\n").forEach(function(l) { if (l.trim()) appendOutput(l); });
+      d.logs.split("\\n").forEach(function(l) { if (l.trim()) appendOutput(l); });
     } else {
       appendOutput("No logs found");
     }
