@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Code Agents</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #faf8f5;
+      color: #2d2d2d;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #1a1a1a;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+    }
+    .agents {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1rem;
+    }
+    .agent {
+      background: #fff;
+      border: 1px solid #e5e2dd;
+      border-radius: 12px;
+      padding: 1.25rem;
+      transition: box-shadow 0.15s ease;
+    }
+    .agent:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .agent-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+    .agent-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: #1a1a1a;
+    }
+    .agent-schedule {
+      font-size: 0.75rem;
+      color: #888;
+      background: #f5f3f0;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+    .agent-desc {
+      font-size: 0.875rem;
+      color: #555;
+      line-height: 1.5;
+      margin-bottom: 1rem;
+    }
+    .agent-actions { display: flex; gap: 0.5rem; }
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled {
+      background: #93c5fd;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #f5f3f0;
+      color: #444;
+      border: 1px solid #e5e2dd;
+    }
+    .btn-secondary:hover { background: #eae7e2; }
+    .status {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+    }
+    .status-idle { background: #9ca3af; }
+    .status-running { background: #22c55e; animation: pulse 1.5s infinite; }
+    .status-error { background: #ef4444; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .output-panel {
+      margin-top: 2rem;
+      background: #fff;
+      border: 1px solid #e5e2dd;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .output-header {
+      padding: 1rem 1.25rem;
+      background: #f9f8f6;
+      border-bottom: 1px solid #e5e2dd;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .output-content {
+      padding: 1rem 1.25rem;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.8rem;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      color: #374151;
+      line-height: 1.6;
+    }
+    .empty-state {
+      color: #9ca3af;
+      text-align: center;
+      padding: 3rem;
+    }
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: #1a1a1a;
+      color: #fff;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.2s ease;
+      z-index: 100;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🤖 Claude Code Agents</h1>
+    <p class="subtitle">AI-powered autonomous agents running on Cloudflare Containers</p>
+    
+    <div class="agents" id="agents"></div>
+    
+    <div class="output-panel">
+      <div class="output-header">
+        <span>Output</span>
+        <button class="btn btn-secondary" onclick="clearOutput()">Clear</button>
+      </div>
+      <div class="output-content" id="output">
+        <div class="empty-state">Run an agent to see output here</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const agents = [
+      {
+        id: 'pentest',
+        name: 'Penetration Tester',
+        schedule: '0 9 * * *',
+        desc: 'Scans the target site for security vulnerabilities, tests common attack vectors, and reports findings with severity ratings.',
+      },
+      {
+        id: 'bughunter',
+        name: 'Bug Hunter',
+        schedule: '0 10 * * *',
+        desc: 'Clones the target repo and hunts for bugs, code smells, and potential runtime errors. Files issues or reports findings.',
+      },
+      {
+        id: 'datainsights',
+        name: 'Data Insights',
+        schedule: '0 11 * * 1',
+        desc: 'Analyzes usage patterns, metrics, and data to surface actionable insights and growth opportunities.',
+      },
+      {
+        id: 'feedback',
+        name: 'Feedback Analyzer',
+        schedule: '0 12 * * 1',
+        desc: 'Reviews user feedback, support tickets, and reviews to identify common pain points and feature requests.',
+      },
+      {
+        id: 'investor',
+        name: 'Skeptical Investor',
+        schedule: '0 14 * * 5',
+        desc: 'Plays devil\'s advocate on the business — pokes holes in strategy, questions assumptions, and stress-tests the pitch.',
+      },
+      {
+        id: 'kpi',
+        name: 'KPI Analyzer',
+        schedule: '0 9 * * 1',
+        desc: 'Tracks key performance indicators, compares week-over-week changes, and highlights metrics that need attention.',
+      },
+    ];
+
+    const agentStatus = {};
+
+    function renderAgents() {
+      const container = document.getElementById('agents');
+      container.innerHTML = agents.map(agent => `
+        <div class="agent" id="agent-${agent.id}">
+          <div class="agent-header">
+            <div>
+              <span class="status status-${agentStatus[agent.id] || 'idle'}"></span>
+              <span class="agent-name">${agent.name}</span>
+            </div>
+            <span class="agent-schedule">${agent.schedule}</span>
+          </div>
+          <p class="agent-desc">${agent.desc}</p>
+          <div class="agent-actions">
+            <button class="btn btn-primary" onclick="runAgent('${agent.id}')" ${agentStatus[agent.id] === 'running' ? 'disabled' : ''}>
+              ${agentStatus[agent.id] === 'running' ? 'Running...' : 'Run Now'}
+            </button>
+            <button class="btn btn-secondary" onclick="viewLogs('${agent.id}')">View Logs</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function appendOutput(text) {
+      const output = document.getElementById('output');
+      if (output.querySelector('.empty-state')) {
+        output.innerHTML = '';
+      }
+      output.textContent += text + '\n';
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function clearOutput() {
+      document.getElementById('output').innerHTML = '<div class="empty-state">Run an agent to see output here</div>';
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    async function runAgent(id) {
+      agentStatus[id] = 'running';
+      renderAgents();
+      appendOutput(`[${new Date().toISOString()}] Starting ${id}...`);
+      
+      try {
+        const res = await fetch(`/api/agents/${id}/run`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+          appendOutput(`[${new Date().toISOString()}] ${id} completed successfully`);
+          if (data.output) appendOutput(data.output);
+          showToast(`${id} completed!`);
+          agentStatus[id] = 'idle';
+        } else {
+          appendOutput(`[${new Date().toISOString()}] ${id} failed: ${data.error}`);
+          showToast(`${id} failed`);
+          agentStatus[id] = 'error';
+        }
+      } catch (err) {
+        appendOutput(`[${new Date().toISOString()}] ${id} error: ${err.message}`);
+        showToast(`${id} error`);
+        agentStatus[id] = 'error';
+      }
+      
+      renderAgents();
+    }
+
+    async function viewLogs(id) {
+      appendOutput(`[${new Date().toISOString()}] Fetching logs for ${id}...`);
+      try {
+        const res = await fetch(`/api/agents/${id}/logs`);
+        const data = await res.json();
+        if (data.logs) {
+          appendOutput(`--- Logs for ${id} ---`);
+          appendOutput(data.logs);
+          appendOutput(`--- End logs ---`);
+        } else {
+          appendOutput(`No logs found for ${id}`);
+        }
+      } catch (err) {
+        appendOutput(`Error fetching logs: ${err.message}`);
+      }
+    }
+
+    renderAgents();
+  </script>
+</body>
+</html>

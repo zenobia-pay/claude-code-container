@@ -7,7 +7,7 @@ account_id = "0e1651bc459f3017e816ba2263e0807a"
 [[containers]]
 class_name = "ClaudeCodeContainer"
 image = "./Dockerfile"
-max_instances = 5
+max_instances = 6
 instance_type = "standard-2"  # 1 vCPU, 6 GiB RAM, 12 GB disk
 
 [[durable_objects.bindings]]
@@ -18,5 +18,20 @@ name = "CLAUDE_CODE"
 new_sqlite_classes = ["ClaudeCodeContainer"]
 tag = "v1"
 
+# KV namespace for agent logs
+[[kv_namespaces]]
+binding = "AGENT_LOGS"
+id = "2c42e9bfd3b14c8fb762fd8e1b63c8de"
+
 [vars]
 ENVIRONMENT = "production"
+
+# Cron triggers for agents
+[triggers]
+crons = [
+  "0 9 * * *",   # pentest daily 9 AM UTC
+  "0 10 * * *",  # bughunter daily 10 AM UTC
+  "0 11 * * 1",  # datainsights Mon 11 AM UTC
+  "0 12 * * 1",  # feedback Mon 12 PM UTC
+  "0 14 * * 5",  # investor Fri 2 PM UTC
+]
