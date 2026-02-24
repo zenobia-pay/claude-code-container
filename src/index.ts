@@ -102,10 +102,6 @@ async function runAgent(agentId: string, env: Env): Promise<{ success: boolean; 
   const logKey = `${agentId}:${startTime}`;
 
   try {
-    // Get a container for this agent
-    const container = await env.CLAUDE_CODE.getContainer(agentId);
-    const containerUrl = container.url;
-
     // Build the full prompt with context
     const fullPrompt = `${agent.prompt}
 
@@ -114,8 +110,12 @@ Target Repo: ${env.TARGET_REPO || "Not configured"}
 
 Execute your analysis and provide a detailed report.`;
 
-    // Call the container's server
-    const response = await fetch(`${containerUrl}/run`, {
+    // Get a Durable Object stub for this agent's container
+    const id = env.CLAUDE_CODE.idFromName(agentId);
+    const stub = env.CLAUDE_CODE.get(id);
+
+    // Call the container via DO stub
+    const response = await stub.fetch(new Request("http://container/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -123,15 +123,39 @@ Execute your analysis and provide a detailed report.`;
         agentId,
         agentName: agent.name,
       }),
-    });
+    }));
 
     if (!response.ok) {
       const error = await response.text();
       throw new Error(`Container error: ${error}`);
     }
 
-    const result = await response.json() as { output?: string };
-    const output = result.output || "No output";
+    const result = await response.json() as { 
+      exitCode?: number; 
+      result?: { raw?: string; result?: string; [key: string]: unknown }; 
+      stderr?: string;
+      error?: string;
+    };
+    
+    // Extract output from Claude Code response
+    let output = "No output";
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    if (result.result) {
+      if (typeof result.result === "string") {
+        output = result.result;
+      } else if (result.result.raw) {
+        output = result.result.raw;
+      } else if (result.result.result) {
+        output = String(result.result.result);
+      } else {
+        output = JSON.stringify(result.result, null, 2);
+      }
+    }
+    if (result.stderr) {
+      output += `\n\nStderr: ${result.stderr}`;
+    }
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
     // Store log
@@ -637,18 +661,53 @@ async function getAsset(_env: Env, _name: string): Promise<string> {
 }
 
 // Durable Object class for Cloudflare Containers
-// This is required by Cloudflare when using containers with DO bindings
+// The container runs as a sidecar and is accessible via localhost:4000
 export class ClaudeCodeContainer {
   private state: DurableObjectState;
   private env: Env;
+  private container: { fetch: typeof fetch } | null = null;
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     this.env = env;
+    // @ts-ignore - Cloudflare Containers provides this.ctx.container
+    if ((this as any).ctx?.container) {
+      // @ts-ignore
+      this.container = (this as any).ctx.container;
+    }
   }
 
   async fetch(request: Request): Promise<Response> {
-    // Container proxy - forwards requests to the actual container
-    return new Response("Container proxy", { status: 200 });
+    const url = new URL(request.url);
+    
+    // Forward to container on port 4000
+    const containerUrl = `http://127.0.0.1:4000${url.pathname}${url.search}`;
+    
+    try {
+      // If we have the container binding, use it
+      if (this.container) {
+        return await this.container.fetch(new Request(containerUrl, {
+          method: request.method,
+          headers: request.headers,
+          body: request.method !== "GET" ? await request.text() : undefined,
+        }));
+      }
+      
+      // Otherwise try direct fetch to localhost
+      const response = await fetch(containerUrl, {
+        method: request.method,
+        headers: Object.fromEntries(request.headers.entries()),
+        body: request.method !== "GET" ? await request.text() : undefined,
+      });
+      
+      return new Response(response.body, {
+        status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+    } catch (err) {
+      return Response.json({ 
+        error: `Container error: ${err instanceof Error ? err.message : String(err)}` 
+      }, { status: 500 });
+    }
   }
 }
