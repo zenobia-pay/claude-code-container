@@ -19,201 +19,47 @@
       --error: #c23b3b;
       --running: #b8860b;
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: 'Newsreader', Georgia, serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
     }
-
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 4rem 2rem;
-    }
-
+    .container { max-width: 1100px; margin: 0 auto; padding: 4rem 2rem; }
     header { margin-bottom: 4rem; }
-
-    h1 {
-      font-size: 2.5rem;
-      font-weight: 500;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.5rem;
-    }
-
-    .subtitle {
-      font-size: 1.1rem;
-      color: var(--text-secondary);
-      font-style: italic;
-    }
-
-    .agents {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-      background: var(--border);
-      border: 1px solid var(--border);
-      margin-bottom: 3rem;
-    }
-
-    .agent {
-      background: var(--surface);
-      padding: 1.5rem 2rem;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 2rem;
-      align-items: center;
-      transition: background 0.15s ease;
-    }
-
+    h1 { font-size: 2.5rem; font-weight: 500; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+    .subtitle { font-size: 1.1rem; color: var(--text-secondary); font-style: italic; }
+    .agents { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 3rem; }
+    .agent { background: var(--surface); padding: 1.5rem 2rem; display: grid; grid-template-columns: 1fr auto; gap: 2rem; align-items: center; }
     .agent:hover { background: var(--bg); }
-
-    .agent-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .agent-name {
-      font-size: 1.1rem;
-      font-weight: 500;
-    }
-
-    .agent-desc {
-      font-size: 0.95rem;
-      color: var(--text-secondary);
-    }
-
-    .agent-meta {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-    }
-
-    .agent-schedule {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.75rem;
-      color: var(--text-tertiary);
-      background: var(--bg);
-      padding: 0.25rem 0.5rem;
-      border-radius: 2px;
-    }
-
-    .agent-status {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 0.25rem 0.5rem;
-      border-radius: 2px;
-    }
-
-    .agent-status.idle { color: var(--text-tertiary); }
+    .agent-info { display: flex; flex-direction: column; gap: 0.25rem; }
+    .agent-name { font-size: 1.1rem; font-weight: 500; }
+    .agent-desc { font-size: 0.95rem; color: var(--text-secondary); }
+    .agent-meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; }
+    .agent-schedule { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; color: var(--text-tertiary); background: var(--bg); padding: 0.25rem 0.5rem; }
+    .agent-status { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.25rem 0.5rem; }
     .agent-status.running { color: var(--running); background: rgba(184, 134, 11, 0.1); }
     .agent-status.error { color: var(--error); background: rgba(194, 59, 59, 0.1); }
-
     .agent-actions { display: flex; gap: 0.75rem; }
-
-    .btn {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.8rem;
-      padding: 0.6rem 1.2rem;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-
-    .btn:hover {
-      border-color: var(--text);
-      background: var(--text);
-      color: var(--surface);
-    }
-
-    .btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    .btn:disabled:hover {
-      background: var(--surface);
-      color: var(--text);
-      border-color: var(--border);
-    }
-
-    .output-section {
-      border: 1px solid var(--border);
-      background: var(--surface);
-    }
-
-    .output-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 1.5rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .output-title {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--text-tertiary);
-    }
-
-    .output-content {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.8rem;
-      line-height: 1.8;
-      padding: 1.5rem;
-      min-height: 200px;
-      max-height: 400px;
-      overflow-y: auto;
-      color: var(--text-secondary);
-    }
-
+    .btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; padding: 0.6rem 1.2rem; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+    .btn:hover { border-color: var(--text); background: var(--text); color: var(--surface); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .output-section { border: 1px solid var(--border); background: var(--surface); }
+    .output-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); }
+    .output-title { font-family: 'IBM Plex Mono', monospace; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-tertiary); }
+    .output-content { font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; line-height: 1.8; padding: 1.5rem; min-height: 200px; max-height: 400px; overflow-y: auto; color: var(--text-secondary); }
     .output-line { margin-bottom: 0.25rem; }
     .output-time { color: var(--text-tertiary); margin-right: 1rem; }
     .output-text.success { color: var(--success); }
     .output-text.error { color: var(--error); }
     .output-text.info { color: var(--text); }
-
-    .empty-state {
-      color: var(--text-tertiary);
-      font-style: italic;
-      font-family: 'Newsreader', Georgia, serif;
-    }
-
-    .toast {
-      position: fixed;
-      bottom: 2rem;
-      right: 2rem;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 0.8rem;
-      padding: 1rem 1.5rem;
-      background: var(--text);
-      color: var(--surface);
-      opacity: 0;
-      transform: translateY(8px);
-      transition: all 0.2s ease;
-    }
-
+    .empty-state { color: var(--text-tertiary); font-style: italic; font-family: 'Newsreader', Georgia, serif; }
+    .toast { position: fixed; bottom: 2rem; right: 2rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; padding: 1rem 1.5rem; background: var(--text); color: var(--surface); opacity: 0; transform: translateY(8px); transition: all 0.2s ease; }
     .toast.show { opacity: 1; transform: translateY(0); }
     .toast.error { background: var(--error); }
-
-    @media (max-width: 768px) {
-      .container { padding: 2rem 1rem; }
-      .agent { grid-template-columns: 1fr; gap: 1rem; }
-      .agent-actions { justify-content: flex-start; }
-    }
+    @media (max-width: 768px) { .container { padding: 2rem 1rem; } .agent { grid-template-columns: 1fr; gap: 1rem; } }
   </style>
 </head>
 <body>
@@ -222,9 +68,7 @@
       <h1>Agents</h1>
       <p class="subtitle">Autonomous task execution</p>
     </header>
-
     <div class="agents" id="agents"></div>
-
     <div class="output-section">
       <div class="output-header">
         <span class="output-title">Output</span>
@@ -235,154 +79,112 @@
       </div>
     </div>
   </div>
-
   <div class="toast" id="toast"></div>
-
   <script>
-    var agents = [
-      { key: 'pentest', name: 'Penetration Tester', schedule: '0 9 * * *', desc: 'Scans for security vulnerabilities and reports findings with severity ratings.' },
-      { key: 'bughunter', name: 'Bug Hunter', schedule: '0 10 * * *', desc: 'Analyzes code for bugs, code smells, and potential runtime errors.' },
-      { key: 'datainsights', name: 'Data Insights', schedule: '0 11 * * 1', desc: 'Surfaces actionable insights from usage patterns and metrics.' },
-      { key: 'feedback', name: 'Feedback Analyzer', schedule: '0 12 * * 1', desc: 'Identifies pain points and prioritizes feature requests from user feedback.' },
-      { key: 'investor', name: 'Skeptical Investor', schedule: '0 14 * * 5', desc: 'Challenges assumptions and stress-tests business strategy.' },
-      { key: 'kpi', name: 'KPI Analyzer', schedule: '0 9 * * 1', desc: 'Tracks metrics week-over-week and highlights areas needing attention.' },
-    ];
+var agents = [
+  { key: "pentest", name: "Penetration Tester", schedule: "0 9 * * *", desc: "Scans for security vulnerabilities and reports findings with severity ratings." },
+  { key: "bughunter", name: "Bug Hunter", schedule: "0 10 * * *", desc: "Analyzes code for bugs, code smells, and potential runtime errors." },
+  { key: "datainsights", name: "Data Insights", schedule: "0 11 * * 1", desc: "Surfaces actionable insights from usage patterns and metrics." },
+  { key: "feedback", name: "Feedback Analyzer", schedule: "0 12 * * 1", desc: "Identifies pain points and prioritizes feature requests from user feedback." },
+  { key: "investor", name: "Skeptical Investor", schedule: "0 14 * * 5", desc: "Challenges assumptions and stress-tests business strategy." },
+  { key: "kpi", name: "KPI Analyzer", schedule: "0 9 * * 1", desc: "Tracks metrics week-over-week and highlights areas needing attention." }
+];
+var agentStatus = {};
 
-    var agentStatus = {};
+function renderAgents() {
+  var html = "";
+  for (var i = 0; i < agents.length; i++) {
+    var a = agents[i];
+    var st = agentStatus[a.key] || "idle";
+    html += "<div class='agent'><div class='agent-info'><div class='agent-name'>" + a.name + "</div><div class='agent-desc'>" + a.desc + "</div><div class='agent-meta'><span class='agent-schedule'>" + a.schedule + "</span>" + (st !== "idle" ? "<span class='agent-status " + st + "'>" + st + "</span>" : "") + "</div></div><div class='agent-actions'><button class='btn' onclick='viewLogs(\"" + a.key + "\")'>Logs</button><button class='btn'" + (st === "running" ? " disabled" : "") + " onclick='runAgent(\"" + a.key + "\")'>" + (st === "running" ? "Running..." : "Run") + "</button></div></div>";
+  }
+  document.getElementById("agents").innerHTML = html;
+}
 
-    function renderAgents() {
-      var html = '';
-      for (var i = 0; i < agents.length; i++) {
-        var agent = agents[i];
-        var status = agentStatus[agent.key] || 'idle';
-        html += '<div class="agent">' +
-          '<div class="agent-info">' +
-            '<div class="agent-name">' + agent.name + '</div>' +
-            '<div class="agent-desc">' + agent.desc + '</div>' +
-            '<div class="agent-meta">' +
-              '<span class="agent-schedule">' + agent.schedule + '</span>' +
-              (status !== 'idle' ? '<span class="agent-status ' + status + '">' + status + '</span>' : '') +
-            '</div>' +
-          '</div>' +
-          '<div class="agent-actions">' +
-            '<button class="btn" onclick="viewLogs(\'' + agent.key + '\')">Logs</button>' +
-            '<button class="btn" onclick="runAgent(\'' + agent.key + '\')"' + (status === 'running' ? ' disabled' : '') + '>' +
-              (status === 'running' ? 'Running...' : 'Run') +
-            '</button>' +
-          '</div>' +
-        '</div>';
-      }
-      document.getElementById('agents').innerHTML = html;
+function formatTime(d) { return d.toTimeString().slice(0, 8); }
+
+function appendOutput(text, type) {
+  var o = document.getElementById("output");
+  if (o.querySelector(".empty-state")) o.innerHTML = "";
+  var line = document.createElement("div");
+  line.className = "output-line";
+  line.innerHTML = "<span class='output-time'>" + formatTime(new Date()) + "</span><span class='output-text " + (type || "") + "'>" + text + "</span>";
+  o.appendChild(line);
+  o.scrollTop = o.scrollHeight;
+}
+
+function clearOutput() {
+  document.getElementById("output").innerHTML = "<div class='empty-state'>Awaiting command...</div>";
+}
+
+function showToast(msg, err) {
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast" + (err ? " error" : "");
+  t.classList.add("show");
+  setTimeout(function() { t.classList.remove("show"); }, 3000);
+}
+
+function runAgent(key, retry) {
+  retry = retry || 0;
+  agentStatus[key] = "running";
+  renderAgents();
+  if (retry === 0) {
+    appendOutput("Warming up container...", "info");
+    fetch("/api/agents/" + key + "/warm", { method: "POST" }).then(function() {
+      appendOutput("Starting " + key + "...", "info");
+      doRun(key, 0);
+    }).catch(function() {
+      appendOutput("Starting " + key + "...", "info");
+      doRun(key, 0);
+    });
+  } else {
+    doRun(key, retry);
+  }
+}
+
+function doRun(key, retry) {
+  fetch("/api/agents/" + key + "/run", { method: "POST" }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.success) {
+      appendOutput(key + " completed", "success");
+      if (d.output) d.output.split("\n").forEach(function(l) { if (l.trim()) appendOutput(l); });
+      showToast("Complete");
+      agentStatus[key] = "idle";
+    } else if (d.error && d.error.indexOf("blockConcurrencyWhile") > -1 && retry < 3) {
+      appendOutput("Container starting, retry in 10s (attempt " + (retry + 2) + "/4)", "info");
+      setTimeout(function() { doRun(key, retry + 1); }, 10000);
+      return;
+    } else {
+      appendOutput("Failed: " + d.error, "error");
+      showToast("Failed", true);
+      agentStatus[key] = "error";
     }
-
-    function formatTime(d) {
-      return d.toTimeString().slice(0, 8);
-    }
-
-    function appendOutput(text, type) {
-      var output = document.getElementById('output');
-      if (output.querySelector('.empty-state')) output.innerHTML = '';
-      
-      var line = document.createElement('div');
-      line.className = 'output-line';
-      line.innerHTML = '<span class="output-time">' + formatTime(new Date()) + '</span><span class="output-text ' + (type || '') + '">' + text + '</span>';
-      output.appendChild(line);
-      output.scrollTop = output.scrollHeight;
-    }
-
-    function clearOutput() {
-      document.getElementById('output').innerHTML = '<div class="empty-state">Awaiting command...</div>';
-    }
-
-    function showToast(msg, err) {
-      var t = document.getElementById('toast');
-      t.textContent = msg;
-      t.className = 'toast' + (err ? ' error' : '');
-      t.classList.add('show');
-      setTimeout(function() { t.classList.remove('show'); }, 3000);
-    }
-
-    function runAgent(key, retryCount) {
-      retryCount = retryCount || 0;
-      agentStatus[key] = 'running';
-      renderAgents();
-      
-      if (retryCount === 0) {
-        appendOutput('Warming up container...', 'info');
-        // First, warm up the container
-        fetch('/api/agents/' + key + '/warm', { method: 'POST' })
-          .then(function() {
-            appendOutput('Starting ' + key + '...', 'info');
-            return doRun(key, 0);
-          })
-          .catch(function() {
-            // Warm-up might timeout, that's ok - try run anyway
-            appendOutput('Starting ' + key + '...', 'info');
-            doRun(key, 0);
-          });
-      } else {
-        doRun(key, retryCount);
-      }
-    }
-
-    function doRun(key, retryCount) {
-      fetch('/api/agents/' + key + '/run', { method: 'POST' })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          if (data.success) {
-            appendOutput(key + ' completed', 'success');
-            if (data.output) {
-              var lines = data.output.split('\n');
-              for (var i = 0; i < lines.length; i++) {
-                if (lines[i].trim()) appendOutput(lines[i]);
-              }
-            }
-            showToast('Complete');
-            agentStatus[key] = 'idle';
-          } else if (data.error && data.error.indexOf('blockConcurrencyWhile') > -1 && retryCount < 3) {
-            appendOutput('Container still starting, retrying in 10s... (attempt ' + (retryCount + 2) + '/4)', 'info');
-            setTimeout(function() { doRun(key, retryCount + 1); }, 10000);
-            return; // Don't reset status yet
-          } else {
-            appendOutput('Failed: ' + data.error, 'error');
-            showToast('Failed', true);
-            agentStatus[key] = 'error';
-          }
-          renderAgents();
-        })
-        .catch(function(e) {
-          if (retryCount < 3) {
-            appendOutput('Request failed, retrying in 10s... (attempt ' + (retryCount + 2) + '/4)', 'info');
-            setTimeout(function() { doRun(key, retryCount + 1); }, 10000);
-            return;
-          }
-          appendOutput('Error: ' + e.message, 'error');
-          showToast('Error', true);
-          agentStatus[key] = 'error';
-          renderAgents();
-        });
-    }
-
-    function viewLogs(key) {
-      appendOutput('Fetching ' + key + ' logs...', 'info');
-      fetch('/api/agents/' + key + '/logs')
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          if (data.logs && data.logs !== 'No logs found') {
-            var lines = data.logs.split('\n');
-            for (var i = 0; i < lines.length; i++) {
-              if (lines[i].trim()) appendOutput(lines[i]);
-            }
-          } else {
-            appendOutput('No logs found');
-          }
-        })
-        .catch(function(e) {
-          appendOutput('Error: ' + e.message, 'error');
-        });
-    }
-
     renderAgents();
+  }).catch(function(e) {
+    if (retry < 3) {
+      appendOutput("Retrying in 10s (attempt " + (retry + 2) + "/4)", "info");
+      setTimeout(function() { doRun(key, retry + 1); }, 10000);
+      return;
+    }
+    appendOutput("Error: " + e.message, "error");
+    showToast("Error", true);
+    agentStatus[key] = "error";
+    renderAgents();
+  });
+}
+
+function viewLogs(key) {
+  appendOutput("Fetching " + key + " logs...", "info");
+  fetch("/api/agents/" + key + "/logs").then(function(r) { return r.json(); }).then(function(d) {
+    if (d.logs && d.logs !== "No logs found") {
+      d.logs.split("\n").forEach(function(l) { if (l.trim()) appendOutput(l); });
+    } else {
+      appendOutput("No logs found");
+    }
+  }).catch(function(e) { appendOutput("Error: " + e.message, "error"); });
+}
+
+renderAgents();
   </script>
 </body>
 </html>
