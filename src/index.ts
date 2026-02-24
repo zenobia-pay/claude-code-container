@@ -1,37 +1,18 @@
-// Container binding type
-interface ContainerBinding {
-  getContainer(id: string): Promise<{ url: string }>;
-  get(id: DurableObjectId): DurableObjectStub;
-  idFromName(name: string): DurableObjectId;
-}
-
-interface DurableObjectId {
-  toString(): string;
-}
-
-interface DurableObjectStub {
-  fetch(request: Request | string): Promise<Response>;
-}
-
-interface DurableObjectState {
-  id: DurableObjectId;
-  storage: DurableObjectStorage;
-}
-
-interface DurableObjectStorage {
-  get<T>(key: string): Promise<T | undefined>;
-  put<T>(key: string, value: T): Promise<void>;
-  delete(key: string): Promise<boolean>;
-  list(): Promise<Map<string, unknown>>;
-}
+import { Container, getContainer } from "@cloudflare/containers";
 
 interface Env {
-  CLAUDE_CODE: ContainerBinding;
+  CLAUDE_CODE: DurableObjectNamespace;
   AGENT_LOGS: KVNamespace;
   SLACK_WEBHOOK_URL?: string;
   TARGET_URL?: string;
   TARGET_REPO?: string;
   ANTHROPIC_API_KEY?: string;
+}
+
+// Container class - extends Cloudflare's Container base class
+export class ClaudeCodeContainer extends Container {
+  defaultPort = 4000;  // Port the container server listens on
+  sleepAfter = "10m";  // Stop instance after 10 min of inactivity
 }
 
 // Agent definitions
@@ -110,12 +91,11 @@ Target Repo: ${env.TARGET_REPO || "Not configured"}
 
 Execute your analysis and provide a detailed report.`;
 
-    // Get a Durable Object stub for this agent's container
-    const id = env.CLAUDE_CODE.idFromName(agentId);
-    const stub = env.CLAUDE_CODE.get(id);
+    // Get a container instance for this agent using Cloudflare's getContainer
+    const container = getContainer(env.CLAUDE_CODE, agentId);
 
-    // Call the container via DO stub
-    const response = await stub.fetch(new Request("http://container/run", {
+    // Call the container's /run endpoint
+    const response = await container.fetch(new Request("http://container/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -248,9 +228,6 @@ async function getAgentLogs(agentId: string, env: Env): Promise<string> {
   return logs.join("\n\n---\n\n");
 }
 
-// Static file serving
-const DASHBOARD_HTML = `PLACEHOLDER`;
-
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -258,8 +235,7 @@ export default {
 
     // Serve dashboard
     if (path === "/" || path === "/index.html") {
-      // In production, we'd serve from assets. For now, redirect to public asset
-      return new Response(await getAsset(env, "index.html"), {
+      return new Response(DASHBOARD_HTML, {
         headers: { "Content-Type": "text/html" },
       });
     }
@@ -310,14 +286,6 @@ export default {
     const hour = new Date(event.scheduledTime).getUTCHours();
     const day = new Date(event.scheduledTime).getUTCDay();
 
-    // Map cron triggers to agents based on schedule
-    // 0 9 * * * - pentest (daily 9 AM)
-    // 0 10 * * * - bughunter (daily 10 AM)
-    // 0 11 * * 1 - datainsights (Mon 11 AM)
-    // 0 12 * * 1 - feedback (Mon 12 PM)
-    // 0 14 * * 5 - investor (Fri 2 PM)
-    // 0 9 * * 1 - kpi (Mon 9 AM)
-
     const toRun: string[] = [];
 
     if (hour === 9 && day === 1) {
@@ -339,18 +307,13 @@ export default {
       toRun.push("investor");
     }
 
-    // Run all scheduled agents (they'll get their own containers)
     for (const agentId of toRun) {
       ctx.waitUntil(runAgent(agentId, env));
     }
   },
 };
 
-// Asset helper - in production use Cloudflare Pages or assets binding
-async function getAsset(_env: Env, _name: string): Promise<string> {
-  // This will be replaced by proper asset serving
-  // For now, inline the dashboard or use a fetch
-  return `<!DOCTYPE html>
+const DASHBOARD_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -658,56 +621,3 @@ async function getAsset(_env: Env, _name: string): Promise<string> {
   </script>
 </body>
 </html>`;
-}
-
-// Durable Object class for Cloudflare Containers
-// The container runs as a sidecar and is accessible via localhost:4000
-export class ClaudeCodeContainer {
-  private state: DurableObjectState;
-  private env: Env;
-  private container: { fetch: typeof fetch } | null = null;
-
-  constructor(state: DurableObjectState, env: Env) {
-    this.state = state;
-    this.env = env;
-    // @ts-ignore - Cloudflare Containers provides this.ctx.container
-    if ((this as any).ctx?.container) {
-      // @ts-ignore
-      this.container = (this as any).ctx.container;
-    }
-  }
-
-  async fetch(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-    
-    // Forward to container on port 4000
-    const containerUrl = `http://127.0.0.1:4000${url.pathname}${url.search}`;
-    
-    try {
-      // If we have the container binding, use it
-      if (this.container) {
-        return await this.container.fetch(new Request(containerUrl, {
-          method: request.method,
-          headers: request.headers,
-          body: request.method !== "GET" ? await request.text() : undefined,
-        }));
-      }
-      
-      // Otherwise try direct fetch to localhost
-      const response = await fetch(containerUrl, {
-        method: request.method,
-        headers: Object.fromEntries(request.headers.entries()),
-        body: request.method !== "GET" ? await request.text() : undefined,
-      });
-      
-      return new Response(response.body, {
-        status: response.status,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-    } catch (err) {
-      return Response.json({ 
-        error: `Container error: ${err instanceof Error ? err.message : String(err)}` 
-      }, { status: 500 });
-    }
-  }
-}
