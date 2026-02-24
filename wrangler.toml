@@ -1,0 +1,22 @@
+name = "claude-code-container"
+main = "src/index.ts"
+compatibility_date = "2026-02-24"
+compatibility_flags = ["nodejs_compat"]
+account_id = "0e1651bc459f3017e816ba2263e0807a"
+
+[[containers]]
+class_name = "ClaudeCodeContainer"
+image = "./Dockerfile"
+max_instances = 5
+instance_type = "standard-2"  # 1 vCPU, 6 GiB RAM, 12 GB disk
+
+[[durable_objects.bindings]]
+class_name = "ClaudeCodeContainer"
+name = "CLAUDE_CODE"
+
+[[migrations]]
+new_sqlite_classes = ["ClaudeCodeContainer"]
+tag = "v1"
+
+[vars]
+ENVIRONMENT = "production"
