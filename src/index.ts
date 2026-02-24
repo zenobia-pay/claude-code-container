@@ -315,6 +315,22 @@ export default {
         });
       }
 
+      // Warm up a container (fire and forget)
+      const warmMatch = path.match(/^\/api\/agents\/(\w+)\/warm$/);
+      if (warmMatch && request.method === "POST") {
+        const agentId = warmMatch[1];
+        try {
+          const container = getContainer(env.CLAUDE_CODE, agentId);
+          // Just hit the health endpoint to trigger container start
+          const res = await container.fetch(new Request("http://container/health"));
+          const data = await res.json() as { status: string };
+          return Response.json({ status: "warm", container: data.status });
+        } catch (e) {
+          // Expected to timeout on cold start - that's fine
+          return Response.json({ status: "warming", message: "Container starting..." });
+        }
+      }
+
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
@@ -351,7 +367,6 @@ export default {
     }
   },
 };
-
 
 const DASHBOARD_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -657,11 +672,30 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
       setTimeout(function() { t.classList.remove('show'); }, 3000);
     }
 
-    function runAgent(key) {
+    function runAgent(key, retryCount) {
+      retryCount = retryCount || 0;
       agentStatus[key] = 'running';
       renderAgents();
-      appendOutput('Starting ' + key + '...', 'info');
       
+      if (retryCount === 0) {
+        appendOutput('Warming up container...', 'info');
+        // First, warm up the container
+        fetch('/api/agents/' + key + '/warm', { method: 'POST' })
+          .then(function() {
+            appendOutput('Starting ' + key + '...', 'info');
+            return doRun(key, 0);
+          })
+          .catch(function() {
+            // Warm-up might timeout, that's ok - try run anyway
+            appendOutput('Starting ' + key + '...', 'info');
+            doRun(key, 0);
+          });
+      } else {
+        doRun(key, retryCount);
+      }
+    }
+
+    function doRun(key, retryCount) {
       fetch('/api/agents/' + key + '/run', { method: 'POST' })
         .then(function(res) { return res.json(); })
         .then(function(data) {
@@ -676,6 +710,10 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
             }
             showToast('Complete');
             agentStatus[key] = 'idle';
+          } else if (data.error && data.error.indexOf('blockConcurrencyWhile') > -1 && retryCount < 3) {
+            appendOutput('Container still starting, retrying in 10s... (attempt ' + (retryCount + 2) + '/4)', 'info');
+            setTimeout(function() { doRun(key, retryCount + 1); }, 10000);
+            return; // Don't reset status yet
           } else {
             appendOutput('Failed: ' + data.error, 'error');
             showToast('Failed', true);
@@ -684,6 +722,11 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
           renderAgents();
         })
         .catch(function(e) {
+          if (retryCount < 3) {
+            appendOutput('Request failed, retrying in 10s... (attempt ' + (retryCount + 2) + '/4)', 'info');
+            setTimeout(function() { doRun(key, retryCount + 1); }, 10000);
+            return;
+          }
           appendOutput('Error: ' + e.message, 'error');
           showToast('Error', true);
           agentStatus[key] = 'error';
